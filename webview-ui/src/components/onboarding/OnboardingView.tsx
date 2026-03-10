@@ -343,9 +343,11 @@ const OnboardingView = ({ onboardingModels }: { onboardingModels: OnboardingMode
 					break
 				case "signin":
 					setIsActionLoading(true)
-					await AccountServiceClient.accountLoginClicked({})
-						.catch(() => {})
-						.finally(() => setIsActionLoading(false))
+					try {
+						window.open("https://gptrouter.cn/login", "_blank", "noopener,noreferrer")
+					} finally {
+						setIsActionLoading(false)
+					}
 					await finishOnboarding(true, stepNumber + 1)
 					break
 				case "next":

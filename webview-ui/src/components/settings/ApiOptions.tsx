@@ -25,6 +25,7 @@ import { DifyProvider } from "./providers/DifyProvider"
 import { DoubaoProvider } from "./providers/DoubaoProvider"
 import { FireworksProvider } from "./providers/FireworksProvider"
 import { GeminiProvider } from "./providers/GeminiProvider"
+import { GPTRouterProvider } from "./providers/GPTRouterProvider"
 import { GroqProvider } from "./providers/GroqProvider"
 import { HicapProvider } from "./providers/HicapProvider"
 import { HuaweiCloudMaasProvider } from "./providers/HuaweiCloudMaasProvider"
@@ -417,6 +418,10 @@ const ApiOptions = ({
 
 			{apiConfiguration && selectedProvider === "openai" && (
 				<OpenAICompatibleProvider currentMode={currentMode} isPopup={isPopup} showModelOptions={showModelOptions} />
+			)}
+
+			{apiConfiguration && selectedProvider === "gptrouter" && (
+				<GPTRouterProvider currentMode={currentMode} isPopup={isPopup} showModelOptions={showModelOptions} />
 			)}
 
 			{apiConfiguration && selectedProvider === "vercel-ai-gateway" && (

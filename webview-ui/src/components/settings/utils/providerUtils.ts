@@ -13,6 +13,7 @@ import {
 	cerebrasModels,
 	claudeCodeDefaultModelId,
 	claudeCodeModels,
+	DEFAULT_API_PROVIDER,
 	deepSeekDefaultModelId,
 	deepSeekModels,
 	doubaoDefaultModelId,
@@ -146,6 +147,7 @@ export function getModelsForProvider(
 		case "openrouter":
 		case "cline":
 		case "openai":
+		case "gptrouter":
 		case "ollama":
 		case "lmstudio":
 		case "vscode-lm":
@@ -178,7 +180,8 @@ export function normalizeApiConfiguration(
 	currentMode: Mode,
 ): NormalizedApiConfig {
 	const provider =
-		(currentMode === "plan" ? apiConfiguration?.planModeApiProvider : apiConfiguration?.actModeApiProvider) || "anthropic"
+		(currentMode === "plan" ? apiConfiguration?.planModeApiProvider : apiConfiguration?.actModeApiProvider) ||
+		DEFAULT_API_PROVIDER
 
 	const modelId = currentMode === "plan" ? apiConfiguration?.planModeApiModelId : apiConfiguration?.actModeApiModelId
 
@@ -290,6 +293,7 @@ export function normalizeApiConfiguration(
 				selectedModelInfo: clineModelInfo,
 			}
 		case "openai":
+		case "gptrouter":
 			const openAiModelId =
 				currentMode === "plan" ? apiConfiguration?.planModeOpenAiModelId : apiConfiguration?.actModeOpenAiModelId
 			const openAiModelInfo =

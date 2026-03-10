@@ -424,6 +424,7 @@ enum ApiProvider {
   BEDROCK = 2;
   VERTEX = 3;
   OPENAI = 4;
+  GPTR_OUTER = 41;
   OLLAMA = 5;
   LMSTUDIO = 6;
   GEMINI = 7;

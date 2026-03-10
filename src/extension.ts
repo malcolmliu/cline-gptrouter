@@ -188,10 +188,10 @@ export async function activate(context: vscode.ExtensionContext) {
 			.then((module) => {
 				const devTaskCommands = module.registerTaskCommands(webview.controller)
 				context.subscriptions.push(...devTaskCommands)
-				Logger.log("[Cline Dev] Dev mode activated & dev commands registered")
+				Logger.log("[cline-gptrouter Dev] Dev mode activated & dev commands registered")
 			})
 			.catch((error) => {
-				Logger.log("[Cline Dev] Failed to register dev commands: " + error)
+				Logger.log("[cline-gptrouter Dev] Failed to register dev commands: " + error)
 			})
 	}
 
@@ -542,7 +542,7 @@ ${ctx.cellJson || "{}"}
 	})
 	context.subscriptions.push({ dispose: unsubSecrets })
 
-	Logger.log(`[Cline] extension activated in ${performance.now() - activationStartTime} ms`)
+	Logger.log(`[cline-gptrouter] extension activated in ${performance.now() - activationStartTime} ms`)
 
 	return createClineAPI(webview.controller)
 }
@@ -595,7 +595,7 @@ async function showJupyterPromptInput(title: string, placeholder: string): Promi
 
 function setupHostProvider(context: ExtensionContext) {
 	const outputChannel = registerClineOutputChannel(context)
-	outputChannel.appendLine("[Cline] Setting up VS Code host...")
+	outputChannel.appendLine("[cline-gptrouter] Setting up VS Code host...")
 
 	const createWebview = () => new VscodeWebviewProvider(context)
 	const createDiffView = () => new VscodeDiffViewProvider()

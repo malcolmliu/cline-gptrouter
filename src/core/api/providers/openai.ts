@@ -6,6 +6,7 @@ import type { ChatCompletionReasoningEffort, ChatCompletionTool } from "openai/r
 import { buildExternalBasicHeaders } from "@/services/EnvUtils"
 import { ClineStorageMessage } from "@/shared/messages/content"
 import { createOpenAIClient, fetch } from "@/shared/net"
+import { Logger } from "@/shared/services/Logger"
 import { ApiHandler, CommonApiHandlerOptions } from "../index"
 import { withRetry } from "../retry"
 import { convertToOpenAiMessages } from "../transform/openai-format"
@@ -133,7 +134,7 @@ export class OpenAiHandler implements ApiHandler {
 			reasoningEffort = requestedEffort === "none" ? undefined : (requestedEffort as ChatCompletionReasoningEffort)
 		}
 
-		const stream = await client.chat.completions.create({
+		const requestPayload = {
 			model: modelId,
 			messages: openAiMessages,
 			temperature,
@@ -142,7 +143,20 @@ export class OpenAiHandler implements ApiHandler {
 			stream: true,
 			stream_options: { include_usage: true },
 			...getOpenAIToolParams(tools),
-		})
+		} as const
+
+		// GPTRouter 调试日志（不包含 API Key）
+		const baseUrlForLog = this.options.openAiBaseUrl || ""
+		if (baseUrlForLog.includes("gptrouter.cn")) {
+			Logger.log(
+				`[GPTRouter] chat.completions request: baseURL=${baseUrlForLog} model=${modelId} hasTools=${!!tools?.length}`,
+			)
+			Logger.log(
+				`[GPTRouter] first user message: ${messages.find((m) => m.role === "user")?.content?.slice(0, 200) || "<none>"}`,
+			)
+		}
+
+		const stream = await client.chat.completions.create(requestPayload)
 
 		const toolCallProcessor = new ToolCallProcessor()
 

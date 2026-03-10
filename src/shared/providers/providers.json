@@ -1,6 +1,10 @@
 {
 	"list": [
 		{
+			"value": "gptrouter",
+			"label": "GPTRouter (OpenAI Compatible)"
+		},
+		{
 			"value": "cline",
 			"label": "Cline"
 		},

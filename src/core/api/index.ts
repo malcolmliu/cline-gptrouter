@@ -450,6 +450,19 @@ function createHandlerForProvider(
 				nousResearchApiKey: options.nousResearchApiKey,
 				apiModelId: mode === "plan" ? options.planModeNousResearchModelId : options.actModeNousResearchModelId,
 			})
+		case "gptrouter":
+			// Map GPTRouter provider到 OpenAI 兼容处理器 (使用 openAi* 配置字段)
+			return new OpenAiHandler({
+				onRetryAttempt: options.onRetryAttempt,
+				openAiApiKey: options.openAiApiKey,
+				openAiBaseUrl: options.openAiBaseUrl,
+				azureApiVersion: options.azureApiVersion,
+				azureIdentity: options.azureIdentity,
+				openAiHeaders: options.openAiHeaders,
+				openAiModelId: mode === "plan" ? options.planModeOpenAiModelId : options.actModeOpenAiModelId,
+				openAiModelInfo: mode === "plan" ? options.planModeOpenAiModelInfo : options.actModeOpenAiModelInfo,
+				reasoningEffort: mode === "plan" ? options.planModeReasoningEffort : options.actModeReasoningEffort,
+			})
 		default:
 			return new AnthropicHandler({
 				onRetryAttempt: options.onRetryAttempt,
