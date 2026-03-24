@@ -1,20 +1,16 @@
 import { StringArray } from "@shared/proto/cline/common"
 import { OpenAiModelsRequest } from "@shared/proto/cline/models"
-import type { AxiosError, AxiosRequestConfig } from "axios"
-import axios from "axios"
+import type { AxiosError } from "axios"
 import { HostProvider } from "@/hosts/host-provider"
-import { getAxiosSettings } from "@/shared/net"
 import { ShowMessageType } from "@/shared/proto/host/window"
 import { Logger } from "@/shared/services/Logger"
 import { Controller } from ".."
+import { fetchOpenAiCompatibleModelCatalog } from "./openAiCompatibleModelsCache"
 
 /**
- * Fetches available models from the OpenAI API
- * @param controller The controller instance
- * @param request Request containing the base URL and API key
- * @returns Array of model names
+ * Fetches available models from the OpenAI-compatible API and caches {@link ModelInfo} (including GPTRouter-style /api/pricing when available).
  */
-export async function refreshOpenAiModels(_controller: Controller, request: OpenAiModelsRequest): Promise<StringArray> {
+export async function refreshOpenAiModels(controller: Controller, request: OpenAiModelsRequest): Promise<StringArray> {
 	try {
 		if (!request.baseUrl) {
 			return StringArray.create({ values: [] })
@@ -24,26 +20,17 @@ export async function refreshOpenAiModels(_controller: Controller, request: Open
 			return StringArray.create({ values: [] })
 		}
 
-		const config: AxiosRequestConfig = {}
-		if (request.apiKey) {
-			config["headers"] = { Authorization: `Bearer ${request.apiKey}` }
-		}
-
-		const url = `${request.baseUrl}/models`
-		Logger.log(`[GPTRouter] Fetching models from: ${url}`)
-
-		const response = await axios.get(url, { ...config, ...getAxiosSettings() })
-		Logger.log(
-			`[GPTRouter] /models response status=${response.status} modelsCount=${
-				Array.isArray(response.data?.data) ? response.data.data.length : "n/a"
-			}`,
+		const { modelIds, catalog } = await fetchOpenAiCompatibleModelCatalog(
+			request.baseUrl,
+			request.apiKey?.trim() || undefined,
 		)
 
-		const modelsArray = response.data?.data?.map((model: any) => model.id) || []
-		const models = [...new Set<string>(modelsArray)]
+		if (Object.keys(catalog).length > 0) {
+			controller.stateManager.setModelsCache("openAi", catalog)
+		}
 
-		Logger.log(`[GPTRouter] Parsed model ids: ${models.join(", ")}`)
-		return StringArray.create({ values: models })
+		Logger.log(`[GPTRouter] refreshOpenAiModels: ${modelIds.length} ids, catalog entries ${Object.keys(catalog).length}`)
+		return StringArray.create({ values: modelIds })
 	} catch (error) {
 		const axiosError = error as AxiosError<any>
 		const status = axiosError?.response?.status

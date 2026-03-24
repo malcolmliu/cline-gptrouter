@@ -1,0 +1,68 @@
+{
+	"navbar": {
+		"chat": "Chat",
+		"newTask": "New Task",
+		"mcp": "MCP",
+		"mcpServers": "MCP Servers",
+		"history": "History",
+		"account": "Account",
+		"settings": "Settings"
+	},
+	"settings": {
+		"title": "Settings",
+		"tabs": {
+			"api-config": {
+				"name": "API Configuration",
+				"tooltip": "API Configuration",
+				"header": "API Configuration"
+			},
+			"features": {
+				"name": "Features",
+				"tooltip": "Feature Settings",
+				"header": "Feature Settings"
+			},
+			"browser": {
+				"name": "Browser",
+				"tooltip": "Browser Settings",
+				"header": "Browser Settings"
+			},
+			"terminal": {
+				"name": "Terminal",
+				"tooltip": "Terminal Settings",
+				"header": "Terminal Settings"
+			},
+			"general": {
+				"name": "General",
+				"tooltip": "General Settings",
+				"header": "General Settings"
+			},
+			"remote-config": {
+				"name": "Remote Config",
+				"tooltip": "Remotely configured fields",
+				"header": "Remote Config"
+			},
+			"about": {
+				"name": "About",
+				"tooltip": "About Cline",
+				"header": "About"
+			},
+			"debug": {
+				"name": "Debug",
+				"tooltip": "Debug Tools",
+				"header": "Debug"
+			}
+		},
+		"preferredLanguage": {
+			"label": "Preferred Language",
+			"description": "The language that Cline should use for communication."
+		}
+	},
+	"chat": {
+		"errorRetry": {
+			"titleFailed": "Auto-Retry Failed",
+			"titleInProgress": "Auto-Retry in Progress",
+			"failedLine": "Auto-retry failed after {maxAttempts} attempts. Manual intervention required.",
+			"retryLine": "Attempt {attempt} of {maxAttempts} - Retrying in {delaySeconds} seconds..."
+		}
+	}
+}

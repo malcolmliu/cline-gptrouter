@@ -12,6 +12,7 @@ export type ButtonActionType =
 	| "cancel" // Cancel streaming
 	| "utility" // Execute utility function (condense, report_bug)
 	| "retry" // Retry the last action
+	| "proceed_recommended" // Resume using plan-recommended model
 
 /**
  * Button configuration for different message states
@@ -213,7 +214,11 @@ const errorTypes = ["api_req_failed", "mistake_limit_reached"]
  * Determines button configuration based on message type and state
  * This is the single source of truth used by both ActionButtons and useMessageHandlers
  */
-export function getButtonConfig(message: ClineMessage | undefined, _mode: Mode = "act"): ButtonConfig {
+export function getButtonConfig(
+	message: ClineMessage | undefined,
+	_mode: Mode = "act",
+	opts?: { showResumeWithRecommendedModel?: boolean },
+): ButtonConfig {
 	if (!message) {
 		return BUTTON_CONFIGS.default
 	}
@@ -278,6 +283,13 @@ export function getButtonConfig(message: ClineMessage | undefined, _mode: Mode =
 			case "completion_result":
 				return BUTTON_CONFIGS.completion_result
 			case "resume_task":
+				if (opts?.showResumeWithRecommendedModel) {
+					return {
+						...BUTTON_CONFIGS.resume_task,
+						secondaryText: "Resume with recommended model",
+						secondaryAction: "proceed_recommended",
+					}
+				}
 				return BUTTON_CONFIGS.resume_task
 			case "resume_completed_task":
 				return BUTTON_CONFIGS.resume_completed_task

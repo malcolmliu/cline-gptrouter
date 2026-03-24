@@ -12,11 +12,11 @@ type UserTypeSelection = {
 
 export const STEP_CONFIG = {
 	0: {
-		title: "How will you use Cline?",
-		description: "Select an option below to get started.",
+		title: "Configure GPTRouter",
+		description: "Enter your GPTRouter API key or login in browser.",
 		buttons: [
-			{ text: "Continue", action: "next", variant: "default" },
 			{ text: "Login to GPTRouter", action: "signin", variant: "secondary" },
+			{ text: "Continue", action: "done", variant: "default" },
 		],
 	},
 	[NEW_USER_TYPE.FREE]: {
@@ -35,10 +35,7 @@ export const STEP_CONFIG = {
 	},
 	[NEW_USER_TYPE.BYOK]: {
 		title: "Configure your provider",
-		buttons: [
-			{ text: "Continue", action: "done", variant: "default" },
-			{ text: "Back", action: "back", variant: "secondary" },
-		],
+		buttons: [{ text: "Continue", action: "done", variant: "default" }],
 	},
 	2: {
 		title: "Almost there!",

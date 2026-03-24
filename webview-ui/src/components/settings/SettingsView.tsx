@@ -17,6 +17,7 @@ import { useEvent } from "react-use"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useClineAuth } from "@/context/ClineAuthContext"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useI18n } from "@/i18n/I18nContext"
 import { cn } from "@/lib/utils"
 import { StateServiceClient } from "@/services/grpc-client"
 import { isAdminOrOwner } from "../account/helpers"
@@ -34,103 +35,96 @@ import TerminalSettingsSection from "./sections/TerminalSettingsSection"
 
 const IS_DEV = process.env.IS_DEV
 
-// Tab definitions
+// Tab definitions (icons + ids); labels come from i18n `settings.tabs.<id>.*`
 type SettingsTabID = "api-config" | "features" | "browser" | "terminal" | "general" | "about" | "debug" | "remote-config"
-interface SettingsTab {
+interface SettingsTabDefinition {
 	id: SettingsTabID
-	name: string
-	tooltipText: string
-	headerText: string
 	icon: LucideIcon
 	hidden?: (params?: { activeOrganization: UserOrganization | null }) => boolean
 }
 
-export const SETTINGS_TABS: SettingsTab[] = [
+export const SETTINGS_TAB_DEFINITIONS: SettingsTabDefinition[] = [
 	{
 		id: "api-config",
-		name: "API Configuration",
-		tooltipText: "API Configuration",
-		headerText: "API Configuration",
 		icon: SlidersHorizontal,
 	},
 	{
 		id: "features",
-		name: "Features",
-		tooltipText: "Feature Settings",
-		headerText: "Feature Settings",
 		icon: CheckCheck,
 	},
 	{
 		id: "browser",
-		name: "Browser",
-		tooltipText: "Browser Settings",
-		headerText: "Browser Settings",
 		icon: SquareMousePointer,
 	},
 	{
 		id: "terminal",
-		name: "Terminal",
-		tooltipText: "Terminal Settings",
-		headerText: "Terminal Settings",
 		icon: SquareTerminal,
 	},
 	{
 		id: "general",
-		name: "General",
-		tooltipText: "General Settings",
-		headerText: "General Settings",
 		icon: Wrench,
 	},
 	{
 		id: "remote-config",
-		name: "Remote Config",
-		tooltipText: "Remotely configured fields",
-		headerText: "Remote Config",
 		icon: HardDriveDownload,
 		hidden: ({ activeOrganization } = { activeOrganization: null }) =>
 			!activeOrganization || !isAdminOrOwner(activeOrganization),
 	},
 	{
 		id: "about",
-		name: "About",
-		tooltipText: "About Cline",
-		headerText: "About",
 		icon: Info,
 	},
 	// Only show in dev mode
 	{
 		id: "debug",
-		name: "Debug",
-		tooltipText: "Debug Tools",
-		headerText: "Debug",
 		icon: FlaskConical,
 		hidden: () => !IS_DEV,
 	},
 ]
+
+type SettingsTab = SettingsTabDefinition & {
+	name: string
+	tooltipText: string
+	headerText: string
+}
 
 type SettingsViewProps = {
 	onDone: () => void
 	targetSection?: string
 }
 
-// Helper to render section header - moved outside component for better performance
-const renderSectionHeader = (tabId: string) => {
-	const tab = SETTINGS_TABS.find((t) => t.id === tabId)
-	if (!tab) {
-		return null
-	}
-
-	return (
-		<SectionHeader>
-			<div className="flex items-center gap-2">
-				<tab.icon className="w-4" />
-				<div>{tab.headerText}</div>
-			</div>
-		</SectionHeader>
-	)
-}
-
 const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
+	const { t } = useI18n()
+
+	const settingsTabs: SettingsTab[] = useMemo(
+		() =>
+			SETTINGS_TAB_DEFINITIONS.map((def) => ({
+				...def,
+				name: t(`settings.tabs.${def.id}.name`),
+				tooltipText: t(`settings.tabs.${def.id}.tooltip`),
+				headerText: t(`settings.tabs.${def.id}.header`),
+			})),
+		[t],
+	)
+
+	const renderSectionHeader = useCallback(
+		(tabId: string) => {
+			const tab = settingsTabs.find((x) => x.id === tabId)
+			if (!tab) {
+				return null
+			}
+
+			return (
+				<SectionHeader>
+					<div className="flex items-center gap-2">
+						<tab.icon className="w-4" />
+						<div>{tab.headerText}</div>
+					</div>
+				</SectionHeader>
+			)
+		},
+		[settingsTabs],
+	)
 	// Memoize to avoid recreation
 	const TAB_CONTENT_MAP: Record<SettingsTabID, React.FC<any>> = useMemo(
 		() => ({
@@ -149,7 +143,7 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 	const { version, environment, settingsInitialModelTab } = useExtensionState()
 	const { activeOrganization } = useClineAuth()
 
-	const [activeTab, setActiveTab] = useState<string>(targetSection || SETTINGS_TABS[0].id)
+	const [activeTab, setActiveTab] = useState<string>(targetSection || SETTINGS_TAB_DEFINITIONS[0].id)
 
 	// Optimized message handler with early returns
 	const handleMessage = useCallback((event: MessageEvent) => {
@@ -169,7 +163,7 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 		}
 
 		// Check if valid tab ID
-		if (SETTINGS_TABS.some((tab) => tab.id === tabId)) {
+		if (SETTINGS_TAB_DEFINITIONS.some((tab) => tab.id === tabId)) {
 			setActiveTab(tabId)
 			return
 		}
@@ -211,7 +205,7 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 
 	// Memoized tab item renderer
 	const renderTabItem = useCallback(
-		(tab: (typeof SETTINGS_TABS)[0]) => {
+		(tab: SettingsTab) => {
 			return (
 				<TabTrigger className="flex justify-baseline" data-testid={`tab-${tab.id}`} key={tab.id} value={tab.id}>
 					<Tooltip key={tab.id}>
@@ -233,7 +227,7 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 				</TabTrigger>
 			)
 		},
-		[activeTab],
+		[activeTab, settingsTabs],
 	)
 
 	// Memoized active content component
@@ -254,18 +248,18 @@ const SettingsView = ({ onDone, targetSection }: SettingsViewProps) => {
 		}
 
 		return <Component {...props} />
-	}, [activeTab, handleResetState, settingsInitialModelTab, version])
+	}, [activeTab, handleResetState, renderSectionHeader, settingsInitialModelTab, version])
 
 	return (
 		<Tab>
-			<ViewHeader environment={environment} onDone={onDone} title="Settings" />
+			<ViewHeader environment={environment} onDone={onDone} title={t("settings.title")} />
 
 			<div className="flex flex-1 overflow-hidden">
 				<TabList
 					className="shrink-0 flex flex-col overflow-y-auto border-r border-sidebar-background"
 					onValueChange={setActiveTab}
 					value={activeTab}>
-					{SETTINGS_TABS.filter((tab) => !tab.hidden?.({ activeOrganization })).map(renderTabItem)}
+					{settingsTabs.filter((tab) => !tab.hidden?.({ activeOrganization })).map(renderTabItem)}
 				</TabList>
 
 				<TabContent className="flex-1 overflow-auto">{ActiveContent}</TabContent>

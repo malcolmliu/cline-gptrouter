@@ -1,0 +1,68 @@
+{
+	"navbar": {
+		"chat": "对话",
+		"newTask": "新任务",
+		"mcp": "MCP",
+		"mcpServers": "MCP 服务器",
+		"history": "历史",
+		"account": "账户",
+		"settings": "设置"
+	},
+	"settings": {
+		"title": "设置",
+		"tabs": {
+			"api-config": {
+				"name": "API 配置",
+				"tooltip": "API 配置",
+				"header": "API 配置"
+			},
+			"features": {
+				"name": "功能",
+				"tooltip": "功能设置",
+				"header": "功能设置"
+			},
+			"browser": {
+				"name": "浏览器",
+				"tooltip": "浏览器设置",
+				"header": "浏览器设置"
+			},
+			"terminal": {
+				"name": "终端",
+				"tooltip": "终端设置",
+				"header": "终端设置"
+			},
+			"general": {
+				"name": "常规",
+				"tooltip": "常规设置",
+				"header": "常规设置"
+			},
+			"remote-config": {
+				"name": "远程配置",
+				"tooltip": "远程配置的字段",
+				"header": "远程配置"
+			},
+			"about": {
+				"name": "关于",
+				"tooltip": "关于 Cline",
+				"header": "关于"
+			},
+			"debug": {
+				"name": "调试",
+				"tooltip": "调试工具",
+				"header": "调试"
+			}
+		},
+		"preferredLanguage": {
+			"label": "首选语言",
+			"description": "Cline 在对话中应使用的语言。"
+		}
+	},
+	"chat": {
+		"errorRetry": {
+			"titleFailed": "自动重试失败",
+			"titleInProgress": "正在自动重试",
+			"failedLine": "经过 {maxAttempts} 次自动重试后仍失败，需要手动处理。",
+			"retryLine": "第 {attempt} 次 / 共 {maxAttempts} 次 — {delaySeconds} 秒后重试..."
+		}
+	}
+}

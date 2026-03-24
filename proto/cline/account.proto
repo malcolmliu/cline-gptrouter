@@ -53,6 +53,12 @@ service AccountService {
 
   // Signs out of OpenAI Codex and clears stored credentials
   rpc openAiCodexSignOut(EmptyRequest) returns (Empty);
+
+  // GPTRouter: start browser OAuth (opens authorize URL), returns the URL for debugging
+  rpc gptrouterOauthLoginClicked(EmptyRequest) returns (String);
+
+  // GPTRouter: clear OAuth session / API key when logged in via OAuth
+  rpc gptrouterOauthLogoutClicked(EmptyRequest) returns (Empty);
 }
 
 message AuthStateChangedRequest {

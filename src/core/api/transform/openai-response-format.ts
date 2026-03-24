@@ -70,14 +70,19 @@ import { ClineStorageMessage } from "@/shared/messages/content"
  *
  * @param messages - Array of ClineStorageMessage objects to be converted
  * @returns ResponseInput array containing the transformed messages with proper reasoning pairing
+ *
+ * `omitAssistantReasoningItems`: for `responses.create` with **`store: false`**, the server does not
+ * keep prior items; resending assistant `thinking` blocks with ids (`rs_…`) causes **400 Item … not found**.
+ * Omit those items; keep assistant text / tool_use and user tool_result.
  */
 export function convertToOpenAIResponsesInput(
 	_messages: ClineStorageMessage[],
-	options?: { usePreviousResponseId?: boolean },
+	options?: { usePreviousResponseId?: boolean; omitAssistantReasoningItems?: boolean },
 ): {
 	input: ResponseInput
 	previousResponseId?: string
 } {
+	const omitAssistantReasoningItems = options?.omitAssistantReasoningItems === true
 	// Chain from the latest stored Responses API assistant message when available.
 	// When chaining, only send new items after that assistant turn.
 	let previousResponseId: string | undefined
@@ -114,6 +119,9 @@ export function convertToOpenAIResponsesInput(
 			for (const part of m.content) {
 				switch (part.type) {
 					case "thinking":
+						if (omitAssistantReasoningItems) {
+							break
+						}
 						// Only include reasoning item if it has actual content (thinking text or summary)
 						// Empty reasoning items cause API errors: "Item 'rs_...' of type 'reasoning' was provided without its required following item"
 						const hasThinkingContent = part.thinking && part.thinking.trim().length > 0
@@ -143,6 +151,9 @@ export function convertToOpenAIResponsesInput(
 						}
 						break
 					case "redacted_thinking":
+						if (omitAssistantReasoningItems) {
+							break
+						}
 						// Include reasoning item with encrypted content if it has a call_id
 						// Even if data is missing, we need to maintain the reasoning-function_call pairing
 						if (part.call_id && part.call_id.length > 0) {
@@ -167,7 +178,7 @@ export function convertToOpenAIResponsesInput(
 							content: [{ type: "output_text", text: part.text }],
 						}
 						// Set message-level id if available
-						if (part.call_id) {
+						if (!omitAssistantReasoningItems && part.call_id) {
 							messageItem.id = part.call_id
 						}
 						assistantItems.push(messageItem)
@@ -180,7 +191,7 @@ export function convertToOpenAIResponsesInput(
 							content: [{ type: "output_text", text: `[image:${part.source.media_type}]` }],
 						}
 						// Set message-level id if available (though images typically don't have call_id)
-						if (part.call_id) {
+						if (!omitAssistantReasoningItems && part.call_id) {
 							imageItem.id = part.call_id
 						}
 						assistantItems.push(imageItem)

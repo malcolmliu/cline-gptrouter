@@ -4,6 +4,7 @@ import { VSCodeButton } from "@vscode/webview-ui-toolkit/react"
 import type React from "react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { VirtuosoHandle } from "react-virtuoso"
+import { useExtensionState } from "@/context/ExtensionStateContext"
 import { ButtonActionType, getButtonConfig } from "../../shared/buttonConfig"
 import type { ChatState, MessageHandlers } from "../../types/chatTypes"
 
@@ -34,6 +35,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 }) => {
 	const { inputValue, selectedImages, selectedFiles, setSendingDisabled } = chatState
 	const [isProcessing, setIsProcessing] = useState(false)
+	const { resumeWithRecommendedModelEnabled } = useExtensionState()
 
 	// Memoize last messages to avoid unnecessary recalculations
 	const [lastMessage, secondLastMessage] = useMemo(() => {
@@ -42,9 +44,36 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({
 	}, [messages])
 
 	// Memoize button configuration to avoid recalculation on every render
+	const hasRecommendedModelInLatestPlan = useMemo(() => {
+		const lastPlan = [...messages]
+			.reverse()
+			.find((m) => m.type === "ask" && m.ask === "plan_mode_respond" && typeof m.text === "string")
+		if (!lastPlan?.text) {
+			return false
+		}
+		let text = lastPlan.text
+		try {
+			const parsed = JSON.parse(lastPlan.text) as { response?: string }
+			if (parsed?.response) {
+				text = parsed.response
+			}
+		} catch {
+			// ignore
+		}
+		return /\[Recommended Act model:\s*`[^`]+`\]/.test(text)
+	}, [messages])
+
 	const buttonConfig = useMemo(() => {
-		return lastMessage ? getButtonConfig(lastMessage, mode) : { sendingDisabled: false, enableButtons: false }
-	}, [lastMessage, mode])
+		const showResumeWithRecommendedModel =
+			mode === "act" &&
+			!!resumeWithRecommendedModelEnabled &&
+			lastMessage?.type === "ask" &&
+			lastMessage.ask === "resume_task" &&
+			hasRecommendedModelInLatestPlan
+		return lastMessage
+			? getButtonConfig(lastMessage, mode, { showResumeWithRecommendedModel })
+			: { sendingDisabled: false, enableButtons: false }
+	}, [lastMessage, mode, resumeWithRecommendedModelEnabled, hasRecommendedModelInLatestPlan])
 
 	// Single effect to handle all configuration updates
 	useEffect(() => {

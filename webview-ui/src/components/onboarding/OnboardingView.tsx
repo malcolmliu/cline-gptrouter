@@ -248,7 +248,7 @@ const OnboardingStepContent = ({
 	onboardingModels,
 }: OnboardingStepContentProps) => {
 	if (step === 0) {
-		return <UserTypeSelectionStep onSelectUserType={onSelectUserType} userType={userType} />
+		return <ApiConfigurationSection />
 	}
 	if (step === 2) {
 		return null
@@ -276,7 +276,7 @@ const OnboardingView = ({ onboardingModels }: { onboardingModels: OnboardingMode
 
 	const [stepNumber, setStepNumber] = useState(0)
 	const [isActionLoading, setIsActionLoading] = useState(false)
-	const [userType, setUserType] = useState<NEW_USER_TYPE>(NEW_USER_TYPE.FREE)
+	const [userType, setUserType] = useState<NEW_USER_TYPE>(NEW_USER_TYPE.BYOK)
 
 	const [selectedModelId, setSelectedModelId] = useState("")
 	const [searchTerm, setSearchTerm] = useState("")
@@ -344,11 +344,14 @@ const OnboardingView = ({ onboardingModels }: { onboardingModels: OnboardingMode
 				case "signin":
 					setIsActionLoading(true)
 					try {
+						await AccountServiceClient.gptrouterOauthLoginClicked({})
+					} catch {
+						// Fallback: open marketing login if extension RPC fails
 						window.open("https://gptrouter.cn/login", "_blank", "noopener,noreferrer")
 					} finally {
 						setIsActionLoading(false)
 					}
-					await finishOnboarding(true, stepNumber + 1)
+					await finishOnboarding(false, stepNumber)
 					break
 				case "next":
 					StateServiceClient.captureOnboardingProgress({ step: stepNumber + 1 })
@@ -369,9 +372,9 @@ const OnboardingView = ({ onboardingModels }: { onboardingModels: OnboardingMode
 	)
 
 	const stepDisplayInfo = useMemo(() => {
-		const step = stepNumber === 0 || stepNumber === 2 ? STEP_CONFIG[stepNumber] : null
+		const step = stepNumber === 0 || stepNumber === 2 ? STEP_CONFIG[stepNumber] : STEP_CONFIG[NEW_USER_TYPE.BYOK]
 		const title = step ? step.title : userType ? STEP_CONFIG[userType].title : STEP_CONFIG[0].title
-		const description = step ? step.description : null
+		const description = step && "description" in step ? step.description : null
 		const buttons = step ? step.buttons : userType ? STEP_CONFIG[userType].buttons : STEP_CONFIG[0].buttons
 		return { title, description, buttons }
 	}, [stepNumber, userType])

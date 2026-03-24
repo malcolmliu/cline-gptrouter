@@ -248,6 +248,11 @@ message ModelsApiOptions {
   optional string aihubmix_base_url = 42;
   optional string aihubmix_app_code = 43;
   optional bool azure_identity = 44;
+  optional string gptrouter_oauth_base_url = 45;
+  optional string gptrouter_oauth_token_url = 46;
+  optional string gptrouter_oauth_client_id = 47;
+  optional string gptrouter_oauth_authorize_url = 48;
+  optional string gptrouter_oauth_redirect_uri = 49;
 
   // Plan mode configurations
   optional ApiProvider plan_mode_api_provider = 100;
@@ -599,6 +604,11 @@ message ModelsApiConfiguration {
   optional string aihubmix_app_code = 84;
   optional string nous_research_api_key = 85;
   optional bool azure_identity = 86;
+  optional string gptrouter_oauth_base_url = 87;
+  optional string gptrouter_oauth_token_url = 88;
+  optional string gptrouter_oauth_client_id = 89;
+  optional string gptrouter_oauth_authorize_url = 90;
+  optional string gptrouter_oauth_redirect_uri = 91;
 
   // Plan mode configurations
   optional ApiProvider plan_mode_api_provider = 100;

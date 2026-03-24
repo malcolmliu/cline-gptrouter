@@ -45,6 +45,7 @@ import McpResponseDisplay from "@/components/mcp/chat-display/McpResponseDisplay
 import McpResourceRow from "@/components/mcp/configuration/tabs/installed/server-row/McpResourceRow"
 import McpToolRow from "@/components/mcp/configuration/tabs/installed/server-row/McpToolRow"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useI18n } from "@/i18n/I18nContext"
 import { cn } from "@/lib/utils"
 import { FileServiceClient, UiServiceClient } from "@/services/grpc-client"
 import { findMatchingResourceOrTemplate, getMcpServerDisplayName } from "@/utils/mcp"
@@ -155,6 +156,7 @@ export const ChatRowContent = memo(
 			vscodeTerminalExecutionMode,
 			clineMessages,
 		} = useExtensionState()
+		const { t } = useI18n()
 		const [seeNewChangesDisabled, setSeeNewChangesDisabled] = useState(false)
 		const [explainChangesDisabled, setExplainChangesDisabled] = useState(false)
 		const [quoteButtonState, setQuoteButtonState] = useState<QuoteButtonState>({
@@ -1063,19 +1065,21 @@ export const ChatRowContent = memo(
 												<RefreshCwIcon className="mr-2 size-2 animate-spin" />
 											)}
 											<span className="font-medium text-foreground">
-												{isFailed ? "Auto-Retry Failed" : "Auto-Retry in Progress"}
+												{isFailed
+													? t("chat.errorRetry.titleFailed")
+													: t("chat.errorRetry.titleInProgress")}
 											</span>
 										</div>
 										<div className="text-foreground opacity-80">
 											{isFailed ? (
-												<span>
-													Auto-retry failed after <strong>{maxAttempts}</strong> attempts. Manual
-													intervention required.
-												</span>
+												<span>{t("chat.errorRetry.failedLine", { maxAttempts: maxAttempts ?? 0 })}</span>
 											) : (
 												<span>
-													Attempt <strong>{attempt}</strong> of <strong>{maxAttempts}</strong> -
-													Retrying in {delaySeconds} seconds...
+													{t("chat.errorRetry.retryLine", {
+														attempt: attempt ?? 0,
+														maxAttempts: maxAttempts ?? 0,
+														delaySeconds: delaySeconds ?? 0,
+													})}
 												</span>
 											)}
 										</div>

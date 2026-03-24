@@ -108,9 +108,14 @@ export interface ExtensionState {
 	backgroundEditEnabled?: boolean
 	optOutOfRemoteConfig?: boolean
 	doubleCheckCompletionEnabled?: boolean
+	resumeWithRecommendedModelEnabled?: boolean
 	banners?: BannerCardData[]
 	welcomeBanners?: BannerCardData[]
 	openAiCodexIsAuthenticated?: boolean
+	/** VS Code `env.language` (BCP-47), e.g. `en`, `ja`, `ko`, `zh-cn`. Used by webview UI locale. */
+	vscodeUiLocale?: string
+	/** GPTRouter OAuth profile (tokens are not exposed here). */
+	gptrouterAccountProfile?: { userId?: string; email?: string; displayName?: string }
 }
 
 export interface ClineMessage {

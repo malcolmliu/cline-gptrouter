@@ -83,6 +83,28 @@ export class SharedUriHandler {
 					Logger.warn("SharedUriHandler: Missing code parameter for auth callback")
 					return false
 				}
+				case "/auth/gptrouter": {
+					const gptrouterDebug: Record<string, string> = {}
+					for (const [k, v] of query.entries()) {
+						const low = k.toLowerCase()
+						if (low === "code" || low.includes("token")) {
+							gptrouterDebug[k] = v ? `<redacted len=${v.length}>` : ""
+						} else {
+							gptrouterDebug[k] = v ?? ""
+						}
+					}
+					Logger.info(`SharedUriHandler: GPTRouter OAuth callback received query=${JSON.stringify(gptrouterDebug)}`)
+
+					const code = query.get("code")
+					const state = query.get("state")
+
+					if (code && state) {
+						await visibleWebview.controller.handleGptrouterAuthCallback(code, state)
+						return true
+					}
+					Logger.warn("SharedUriHandler: Missing code or state for GPTRouter OAuth callback")
+					return false
+				}
 				case TASK_URI_PATH: {
 					const prompt = query.get("prompt")
 					if (prompt) {

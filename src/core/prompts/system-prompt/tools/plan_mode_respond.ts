@@ -27,7 +27,8 @@ const generic: ClineToolSpec = {
 	id,
 	name: "plan_mode_respond",
 	description: `Respond to the user's inquiry in an effort to plan a solution to the user's task. This tool should ONLY be used when you have already explored the relevant files and are ready to present a concrete plan. DO NOT use this tool to announce what files you're going to read - just read them first. This tool is only available in PLAN MODE. The environment_details will specify the current mode; if it is not PLAN_MODE then you should not use this tool.
-However, if while writing your response you realize you actually need to do more exploration before providing a complete plan, you can add the optional needs_more_exploration parameter to indicate this. This allows you to acknowledge that you should have done more exploration first, and signals that your next message will use exploration tools instead.`,
+However, if while writing your response you realize you actually need to do more exploration before providing a complete plan, you can add the optional needs_more_exploration parameter to indicate this. This allows you to acknowledge that you should have done more exploration first, and signals that your next message will use exploration tools instead.
+When listing concrete Act-mode execution steps, follow PLAN MODE formatting: each step gets a **[Difficulty: …]** tag and a **[Recommended Act model: \`id\`]** chosen from the Act Mode Model Catalog in environment_details when available. Use only ids explicitly present in that catalog. If catalog ids are missing, use only the current selected id shown there (or \`(none selected)\`) and ask the user to refresh/select models.`,
 	parameters: [
 		{
 			name: "response",
@@ -60,7 +61,8 @@ const NATIVE_GPT_5: ClineToolSpec = {
 	id,
 	name: "plan_mode_respond",
 	description: `Respond to the user's inquiry in an effort to plan a solution to the user's task. This tool should ONLY be used when you have already explored the relevant files and are ready to present a concrete plan. DO NOT use this tool to announce what files you're going to read - just read them first. This tool is only available in PLAN MODE. The environment_details will specify the current mode; if it is not PLAN_MODE then you should not use this tool.
-However, if while writing your response you realize you actually need to do more exploration before providing a complete plan, you can add the optional needs_more_exploration parameter to indicate this. This allows you to acknowledge that you should have done more exploration first, and signals that your next message will use exploration tools instead.`,
+However, if while writing your response you realize you actually need to do more exploration before providing a complete plan, you can add the optional needs_more_exploration parameter to indicate this. This allows you to acknowledge that you should have done more exploration first, and signals that your next message will use exploration tools instead.
+When listing concrete Act-mode execution steps, follow PLAN MODE formatting: each step gets a **[Difficulty: …]** tag and a **[Recommended Act model: \`id\`]** chosen from the Act Mode Model Catalog in environment_details when available. Use only ids explicitly present in that catalog. If catalog ids are missing, use only the current selected id shown there (or \`(none selected)\`) and ask the user to refresh/select models.`,
 	parameters: [
 		{
 			name: "response",
@@ -80,7 +82,8 @@ const GEMINI_3: ClineToolSpec = {
 	id,
 	name: "plan_mode_respond",
 	description: `Respond with a plan that outlines a solution to the user's request. This tool should ONLY be used when you have already explored the relevant files and are ready to present a concrete plan. Only use this tool after you have explored relevant files and collected sufficient context to create a detailed, accurate plan. This tool is only available in PLAN MODE, as indicated by the environment_details.
-If it becomes apparent that additional exploration is required while the plan_mode_respond response is being generated, the optional needs_more_exploration parameter can be toggled to enable further research. This allows you to acknowledge that more exploration is required before the final plan_mode_respond is generated, and signals that your next message will use exploration tools instead.`,
+If it becomes apparent that additional exploration is required while the plan_mode_respond response is being generated, the optional needs_more_exploration parameter can be toggled to enable further research. This allows you to acknowledge that more exploration is required before the final plan_mode_respond is generated, and signals that your next message will use exploration tools instead.
+When listing concrete Act-mode execution steps, include **[Difficulty: …]** and **[Recommended Act model: \`id\`]** per step, using the Act Mode Model Catalog in environment_details when present. Use only ids explicitly present in that catalog. If catalog ids are missing, use only the current selected id shown there (or \`(none selected)\`) and ask the user to refresh/select models.`,
 	parameters: [
 		{
 			name: "response",

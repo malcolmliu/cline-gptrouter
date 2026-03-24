@@ -232,6 +232,14 @@ Otherwise, if you have not completed the task and do not need additional informa
 
 	planModeInstructions: () => {
 		return `In this mode you should focus on information gathering, asking questions, and architecting a solution. Once you have a plan, use the plan_mode_respond tool to engage in a conversational back and forth with the user. Do not use the plan_mode_respond tool until you've gathered all the information you need e.g. with read_file or ask_followup_question.
+
+When you present concrete implementation steps or subtasks (anything the user will execute in Act mode), format each step so it is easy to scan:
+- Start the step with a short difficulty tag on its own line: **[Difficulty: trivial | easy | medium | hard | critical]** (pick one; "critical" = high risk, deep reasoning, or large refactor).
+- On the next line, add **[Recommended Act model: \`exact_model_id\`]** chosen from the "Act Mode Model Catalog" in environment_details below.
+- STRICT ID RULE: only use model ids that explicitly appear in that catalog list. Do NOT invent, normalize, alias, or infer ids.
+- If no catalog list is available, or the list only shows one current selected id, use only that current id (or \`(none selected)\`) and explicitly ask the user to refresh/select models before giving richer recommendations.
+- One line of rationale after that is fine (why this tier fits the step).
+
 (Remember: If it seems the user wants you to use tools only available in Act Mode, you should ask the user to "toggle to Act mode" (use those words) - they will have to manually do this themselves with the Plan/Act toggle button below. You do not have the ability to switch to Act Mode yourself, and must wait for the user to do it themselves once they are satisfied with the plan. You also cannot present an option to toggle to Act mode, as this will be something you need to direct the user to do manually themselves.)`
 	},
 

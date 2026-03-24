@@ -1,0 +1,68 @@
+{
+	"navbar": {
+		"chat": "チャット",
+		"newTask": "新しいタスク",
+		"mcp": "MCP",
+		"mcpServers": "MCP サーバー",
+		"history": "履歴",
+		"account": "アカウント",
+		"settings": "設定"
+	},
+	"settings": {
+		"title": "設定",
+		"tabs": {
+			"api-config": {
+				"name": "API 設定",
+				"tooltip": "API 設定",
+				"header": "API 設定"
+			},
+			"features": {
+				"name": "機能",
+				"tooltip": "機能の設定",
+				"header": "機能の設定"
+			},
+			"browser": {
+				"name": "ブラウザ",
+				"tooltip": "ブラウザ設定",
+				"header": "ブラウザ設定"
+			},
+			"terminal": {
+				"name": "ターミナル",
+				"tooltip": "ターミナル設定",
+				"header": "ターミナル設定"
+			},
+			"general": {
+				"name": "一般",
+				"tooltip": "一般設定",
+				"header": "一般設定"
+			},
+			"remote-config": {
+				"name": "リモート設定",
+				"tooltip": "リモートで構成された項目",
+				"header": "リモート設定"
+			},
+			"about": {
+				"name": "について",
+				"tooltip": "Cline について",
+				"header": "について"
+			},
+			"debug": {
+				"name": "デバッグ",
+				"tooltip": "デバッグツール",
+				"header": "デバッグ"
+			}
+		},
+		"preferredLanguage": {
+			"label": "優先言語",
+			"description": "Cline が応答に使用する言語です。"
+		}
+	},
+	"chat": {
+		"errorRetry": {
+			"titleFailed": "自動再試行に失敗",
+			"titleInProgress": "自動再試行中",
+			"failedLine": "{maxAttempts} 回の自動再試行後も失敗しました。手動での対応が必要です。",
+			"retryLine": "{attempt} / {maxAttempts} 回目 — {delaySeconds} 秒後に再試行します..."
+		}
+	}
+}

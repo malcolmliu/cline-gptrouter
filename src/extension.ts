@@ -49,6 +49,7 @@ import { VscodeTerminalManager } from "./hosts/vscode/terminal/VscodeTerminalMan
 import { VscodeDiffViewProvider } from "./hosts/vscode/VscodeDiffViewProvider"
 import { VscodeWebviewProvider } from "./hosts/vscode/VscodeWebviewProvider"
 import { exportVSCodeStorageToSharedFiles } from "./hosts/vscode/vscode-to-file-migration"
+import { BUNDLED_ARXIV_MCP_FINGERPRINT_KEY, setupBundledArxivMcp } from "./integrations/bundled-arxiv-mcp/setupBundledArxivMcp"
 import { ExtensionRegistryInfo } from "./registry"
 import { AuthService } from "./services/auth/AuthService"
 import { LogoutReason } from "./services/auth/types"
@@ -81,6 +82,9 @@ export async function activate(context: vscode.ExtensionContext) {
 	// 4. Register services and perform common initialization
 	// IMPORTANT: Must be done after host provider is setup and migrations are complete
 	const webview = (await initialize(storageContext)) as VscodeWebviewProvider
+
+	// Bundled ArXiv MCP: merge into cline_mcp_settings.json when present + uv on PATH
+	void setupBundledArxivMcp(context).catch((err) => Logger.error("[gptrouter] setupBundledArxivMcp failed:", err))
 
 	// 5. Register services and commands specific to VS Code
 	// Initialize test mode and add disposables to context
@@ -137,6 +141,13 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerCommand(commands.HistoryButton, () => sendHistoryButtonClickedEvent()))
 	context.subscriptions.push(vscode.commands.registerCommand(commands.AccountButton, () => sendAccountButtonClickedEvent()))
 	context.subscriptions.push(vscode.commands.registerCommand(commands.WorktreesButton, () => sendWorktreesButtonClickedEvent()))
+	context.subscriptions.push(
+		vscode.commands.registerCommand("cline-gptrouter.setupBundledArxivMcp", async () => {
+			await context.globalState.update(BUNDLED_ARXIV_MCP_FINGERPRINT_KEY, undefined)
+			await setupBundledArxivMcp(context, { force: true })
+			void vscode.window.showInformationMessage("cline-gptrouter: ArXiv MCP settings entry refreshed (see MCP panel).")
+		}),
+	)
 
 	/*
 	We use the text document content provider API to show the left side for diff view by creating a

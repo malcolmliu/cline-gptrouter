@@ -7,6 +7,7 @@ import { DEFAULT_MCP_DISPLAY_MODE } from "@shared/McpDisplayMode"
 import type { UserInfo } from "@shared/proto/cline/account"
 import { EmptyRequest } from "@shared/proto/cline/common"
 import type { OpenRouterCompatibleModelInfo } from "@shared/proto/cline/models"
+import { OpenAiModelsRequest } from "@shared/proto/cline/models"
 import { OnboardingModelGroup, type TerminalProfile } from "@shared/proto/cline/state"
 import { convertProtoToClineMessage } from "@shared/proto-conversions/cline-message"
 import { convertProtoMcpServersToMcpServers } from "@shared/proto-conversions/mcp/mcp-server-conversion"
@@ -38,6 +39,9 @@ export interface ExtensionStateContextType extends ExtensionState {
 	hicapModels: Record<string, ModelInfo>
 	liteLlmModels: Record<string, ModelInfo>
 	openAiModels: string[]
+	gptrouterModels: string[]
+	gptrouterPricingMap: Record<string, { inputUsdPer1M: number; outputUsdPer1M: number }>
+	gptrouterPricingError: string | null
 	requestyModels: Record<string, ModelInfo>
 	groqModels: Record<string, ModelInfo>
 	basetenModels: Record<string, ModelInfo>
@@ -93,6 +97,8 @@ export interface ExtensionStateContextType extends ExtensionState {
 	refreshVercelAiGatewayModels: () => void
 	refreshHicapModels: () => void
 	refreshLiteLlmModels: () => Promise<void>
+	refreshGptrouterModels: (apiKey?: string) => Promise<void>
+	refreshGptrouterPricing: () => Promise<void>
 	setUserInfo: (userInfo?: UserInfo) => void
 
 	// Navigation state setters
@@ -288,6 +294,7 @@ export const ExtensionStateContextProvider: React.FC<{
 		hooksEnabled: false,
 		nativeToolCallSetting: false,
 		enableParallelToolCalling: false,
+		gptrouterAccountProfile: undefined,
 	})
 	const [expandTaskHeader, setExpandTaskHeader] = useState(true)
 	const [didHydrateState, setDidHydrateState] = useState(false)
@@ -306,6 +313,11 @@ export const ExtensionStateContextProvider: React.FC<{
 	const [availableTerminalProfiles, setAvailableTerminalProfiles] = useState<TerminalProfile[]>([])
 
 	const [openAiModels, _setOpenAiModels] = useState<string[]>([])
+	const [gptrouterModels, setGptrouterModels] = useState<string[]>([])
+	const [gptrouterPricingMap, setGptrouterPricingMap] = useState<
+		Record<string, { inputUsdPer1M: number; outputUsdPer1M: number }>
+	>({})
+	const [gptrouterPricingError, setGptrouterPricingError] = useState<string | null>(null)
 	const [requestyModels, setRequestyModels] = useState<Record<string, ModelInfo>>({
 		[requestyDefaultModelId]: requestyDefaultModelInfo,
 	})
@@ -739,6 +751,89 @@ export const ExtensionStateContextProvider: React.FC<{
 			.catch((error: Error) => console.error("Failed to refresh Vercel AI Gateway models:", error))
 	}, [])
 
+	// GPTRouter models + pricing (warm on startup so settings UI is immediately usable)
+	const GPTR_OUTER_BASE_URL = "https://gptrouter.cn/v1"
+	const GPTR_PRICING_URL = "https://gptrouter.cn/api/pricing"
+	const USD_TO_CNY = 7.3
+	const BASE_PROMPT_CNY_PER_1M = 14.6
+
+	const normalizePricingLookupKey = (name: string): string => name.trim().toLowerCase()
+	const toNumberOrUndefined = (v: unknown): number | undefined => {
+		const n = typeof v === "number" ? v : Number(v)
+		return Number.isFinite(n) ? n : undefined
+	}
+	const cnyToUsdPer1M = (cnyPer1M: number): number => cnyPer1M / USD_TO_CNY
+
+	const refreshGptrouterModels = useCallback(
+		async (apiKey?: string) => {
+			if (!apiKey) {
+				setGptrouterModels([])
+				return
+			}
+			try {
+				const resp = await ModelsServiceClient.refreshOpenAiModels(
+					OpenAiModelsRequest.create({
+						baseUrl: GPTR_OUTER_BASE_URL,
+						apiKey,
+					}),
+				)
+				setGptrouterModels(resp.values ?? [])
+			} catch (error) {
+				console.error("Failed to refresh GPTRouter models:", error)
+				setGptrouterModels([])
+			}
+		},
+		[setGptrouterModels],
+	)
+
+	const refreshGptrouterPricing = useCallback(async () => {
+		try {
+			setGptrouterPricingError(null)
+
+			const resp = await fetch(GPTR_PRICING_URL, {
+				method: "GET",
+				headers: { Accept: "application/json" },
+			})
+
+			if (!resp.ok) {
+				setGptrouterPricingError(`Pricing fetch failed (${resp.status})`)
+				setGptrouterPricingMap({})
+				return
+			}
+
+			const json = (await resp.json()) as {
+				group_ratio?: Record<string, number>
+				data?: Array<{ model_name?: string; model_ratio?: number; completion_ratio?: number }>
+			}
+
+			const rows = json.data ?? []
+			const ratio = json.group_ratio?.default ?? 1
+
+			const map: Record<string, { inputUsdPer1M: number; outputUsdPer1M: number }> = {}
+			for (const row of rows) {
+				const modelName = row.model_name
+				if (!modelName) continue
+
+				const modelRatio = toNumberOrUndefined(row.model_ratio) ?? 1
+				const completionRatio = toNumberOrUndefined(row.completion_ratio) ?? 1
+
+				const promptCnyPer1M = ratio * modelRatio * BASE_PROMPT_CNY_PER_1M
+				const completionCnyPer1M = ratio * modelRatio * completionRatio * BASE_PROMPT_CNY_PER_1M
+
+				map[normalizePricingLookupKey(modelName)] = {
+					inputUsdPer1M: cnyToUsdPer1M(promptCnyPer1M),
+					outputUsdPer1M: cnyToUsdPer1M(completionCnyPer1M),
+				}
+			}
+
+			setGptrouterPricingMap(map)
+		} catch (e) {
+			console.error("Failed to fetch GPTRouter pricing:", e)
+			setGptrouterPricingError("Pricing fetch failed")
+			setGptrouterPricingMap({})
+		}
+	}, [])
+
 	// Auto-refresh model lists on API key availability
 	useEffect(() => {
 		if (!openRouterModels || Object.keys(openRouterModels).length <= 1) {
@@ -761,6 +856,38 @@ export const ExtensionStateContextProvider: React.FC<{
 		state?.apiConfiguration?.liteLlmApiKey,
 		refreshLiteLlmModels,
 	])
+
+	// GPTRouter pricing + model list refresh
+	// Only run when GPTRouter provider is actually selected to avoid impacting other providers.
+	const hasGptrouterProvider =
+		state.apiConfiguration?.actModeApiProvider === "gptrouter" || state.apiConfiguration?.planModeApiProvider === "gptrouter"
+
+	useEffect(() => {
+		if (!hasGptrouterProvider) {
+			return
+		}
+		void refreshGptrouterPricing()
+	}, [hasGptrouterProvider, refreshGptrouterPricing])
+
+	useEffect(() => {
+		if (!hasGptrouterProvider) {
+			return
+		}
+		void refreshGptrouterModels(state.apiConfiguration?.openAiApiKey)
+	}, [hasGptrouterProvider, state.apiConfiguration?.openAiApiKey, refreshGptrouterModels])
+
+	// Refresh every 4 hours while the extension stays open.
+	useEffect(() => {
+		if (!hasGptrouterProvider) {
+			return
+		}
+		const FOUR_HOURS_MS = 4 * 60 * 60 * 1000
+		const timer = setInterval(() => {
+			void refreshGptrouterPricing()
+			void refreshGptrouterModels(state.apiConfiguration?.openAiApiKey)
+		}, FOUR_HOURS_MS)
+		return () => clearInterval(timer)
+	}, [hasGptrouterProvider, state.apiConfiguration?.openAiApiKey, refreshGptrouterModels, refreshGptrouterPricing])
 
 	// Refresh Cline models function
 	const refreshClineModels = useCallback(() => {
@@ -792,6 +919,9 @@ export const ExtensionStateContextProvider: React.FC<{
 		hicapModels,
 		liteLlmModels,
 		openAiModels,
+		gptrouterModels,
+		gptrouterPricingMap,
+		gptrouterPricingError,
 		requestyModels,
 		groqModels: groqModelsState,
 		basetenModels: basetenModelsState,
@@ -913,6 +1043,8 @@ export const ExtensionStateContextProvider: React.FC<{
 		refreshOpenRouterModels,
 		refreshVercelAiGatewayModels,
 		refreshHicapModels,
+		refreshGptrouterModels,
+		refreshGptrouterPricing,
 		refreshLiteLlmModels,
 		onRelinquishControl,
 		setUserInfo: (userInfo?: UserInfo) => setState((prevState) => ({ ...prevState, userInfo })),

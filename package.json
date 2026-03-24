@@ -197,6 +197,11 @@
 				"icon": "$(debug-stop)"
 			},
 			{
+				"command": "cline-gptrouter.setupBundledArxivMcp",
+				"title": "Refresh bundled ArXiv MCP configuration",
+				"category": "Cline"
+			},
+			{
 				"command": "cline.explainCode",
 				"title": "Explain with Cline",
 				"category": "Cline"
@@ -399,6 +404,8 @@
 		"watch": "npx npm-run-all -p watch:*",
 		"watch:esbuild": "node esbuild.mjs --watch",
 		"watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+		"vendor:arxiv-mcp": "node scripts/vendor-arxiv-mcp.mjs",
+		"package:vsix": "npm run vendor:arxiv-mcp && npm run package && npx vsce package --allow-package-secrets sendgrid --out dist/cline-gptrouter.vsix",
 		"package": "npm run check-types && npm run build:webview && npm run lint && node esbuild.mjs --production",
 		"protos": "node scripts/build-proto.mjs",
 		"protos-python": "node scripts/build-python-proto.mjs",

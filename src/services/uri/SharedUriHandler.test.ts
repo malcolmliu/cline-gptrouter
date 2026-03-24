@@ -10,6 +10,7 @@ describe("SharedUriHandler", () => {
 	let sandbox: sinon.SinonSandbox
 	let handleOpenRouterCallbackStub: sinon.SinonStub
 	let handleAuthCallbackStub: sinon.SinonStub
+	let handleGptrouterAuthCallbackStub: sinon.SinonStub
 
 	beforeEach(async () => {
 		sandbox = sinon.createSandbox()
@@ -34,10 +35,12 @@ describe("SharedUriHandler", () => {
 
 		handleOpenRouterCallbackStub = sandbox.stub().resolves()
 		handleAuthCallbackStub = sandbox.stub().resolves()
+		handleGptrouterAuthCallbackStub = sandbox.stub().resolves()
 		const mockWebviewProvider = {
 			controller: {
 				handleOpenRouterCallback: handleOpenRouterCallbackStub,
 				handleAuthCallback: handleAuthCallbackStub,
+				handleGptrouterAuthCallback: handleGptrouterAuthCallbackStub,
 			},
 		} as any
 		sandbox.stub(WebviewProvider, "getVisibleInstance").returns(mockWebviewProvider)
@@ -92,6 +95,22 @@ describe("SharedUriHandler", () => {
 
 				expect(result).to.be.false
 				expect(handleAuthCallbackStub.called).to.be.false
+			})
+		})
+
+		describe("GPTRouter OAuth callback handling", () => {
+			it("should forward code and state to controller", async () => {
+				const result = await SharedUriHandler.handleUri("vscode://cline.cline/auth/gptrouter?code=abc&state=xyz")
+
+				expect(result).to.be.true
+				sinon.assert.calledOnceWithExactly(handleGptrouterAuthCallbackStub, "abc", "xyz")
+			})
+
+			it("should return false when code or state is missing", async () => {
+				const result = await SharedUriHandler.handleUri("vscode://cline.cline/auth/gptrouter?code=only")
+
+				expect(result).to.be.false
+				expect(handleGptrouterAuthCallbackStub.called).to.be.false
 			})
 		})
 

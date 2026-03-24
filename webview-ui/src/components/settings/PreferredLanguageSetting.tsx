@@ -1,10 +1,12 @@
 import { VSCodeDropdown, VSCodeOption } from "@vscode/webview-ui-toolkit/react"
 import React from "react"
 import { useExtensionState } from "@/context/ExtensionStateContext"
+import { useI18n } from "@/i18n/I18nContext"
 import { updateSetting } from "./utils/settingsHandlers"
 
 const PreferredLanguageSetting: React.FC = () => {
 	const { preferredLanguage } = useExtensionState()
+	const { t } = useI18n()
 
 	const handleLanguageChange = (newLanguage: string) => {
 		updateSetting("preferredLanguage", newLanguage)
@@ -41,7 +43,7 @@ const PreferredLanguageSetting: React.FC = () => {
 				<VSCodeOption value="Traditional Chinese - 繁體中文">Traditional Chinese - 繁體中文</VSCodeOption>
 				<VSCodeOption value="Turkish - Türkçe">Turkish - Türkçe</VSCodeOption>
 			</VSCodeDropdown>
-			<p className="text-sm text-description mt-1">The language that Cline should use for communication.</p>
+			<p className="text-sm text-description mt-1">{t("settings.preferredLanguage.description")}</p>
 		</div>
 	)
 }

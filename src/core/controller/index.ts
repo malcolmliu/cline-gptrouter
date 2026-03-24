@@ -28,6 +28,7 @@ import type { FolderLockWithRetryResult } from "@/core/locks/types"
 import { HostProvider } from "@/hosts/host-provider"
 import { ExtensionRegistryInfo } from "@/registry"
 import { AuthService } from "@/services/auth/AuthService"
+import { GptrouterAuthService } from "@/services/auth/gptrouter/GptrouterAuthService"
 import { OcaAuthService } from "@/services/auth/oca/OcaAuthService"
 import { LogoutReason } from "@/services/auth/types"
 import { BannerService } from "@/services/banner/BannerService"
@@ -134,6 +135,7 @@ export class Controller {
 		})
 		this.authService = AuthService.getInstance(this)
 		this.ocaAuthService = OcaAuthService.initialize(this)
+		GptrouterAuthService.initialize(this)
 		this.accountService = ClineAccountService.getInstance()
 		BannerService.initialize(this)
 
@@ -562,6 +564,24 @@ export class Controller {
 		}
 	}
 
+	async handleGptrouterAuthCallback(code: string, state: string) {
+		try {
+			await GptrouterAuthService.getInstance().handleCallback(code, state)
+			await this.postStateToWebview()
+			HostProvider.window.showMessage({
+				type: ShowMessageType.INFORMATION,
+				message: "GPTRouter 登录成功",
+			})
+		} catch (error) {
+			const detail = error instanceof Error ? `${error.message}${error.stack ? `\n${error.stack}` : ""}` : String(error)
+			Logger.error(`Failed to handle GPTRouter OAuth callback: ${detail}`)
+			HostProvider.window.showMessage({
+				type: ShowMessageType.ERROR,
+				message: error instanceof Error ? error.message : "GPTRouter 登录失败",
+			})
+		}
+	}
+
 	async handleOcaAuthCallback(code: string, state: string) {
 		try {
 			await this.ocaAuthService.handleAuthCallback(code, state)
@@ -887,6 +907,7 @@ export class Controller {
 		const lastDismissedCliBannerVersion = this.stateManager.getGlobalStateKey("lastDismissedCliBannerVersion") || 0
 		const dismissedBanners = this.stateManager.getGlobalStateKey("dismissedBanners")
 		const doubleCheckCompletionEnabled = this.stateManager.getGlobalSettingsKey("doubleCheckCompletionEnabled")
+		const resumeWithRecommendedModelEnabled = this.stateManager.getGlobalSettingsKey("resumeWithRecommendedModelEnabled")
 
 		const localClineRulesToggles = this.stateManager.getWorkspaceStateKey("localClineRulesToggles")
 		const localWindsurfRulesToggles = this.stateManager.getWorkspaceStateKey("localWindsurfRulesToggles")
@@ -917,6 +938,16 @@ export class Controller {
 		// Check OpenAI Codex authentication status
 		const { openAiCodexOAuthManager } = await import("@/integrations/openai-codex/oauth")
 		const openAiCodexIsAuthenticated = await openAiCodexOAuthManager.isAuthenticated()
+
+		const gptrouterAccountProfile = this.stateManager.getGlobalStateKey("gptrouterAccountProfile")
+
+		let vscodeUiLocale: string | undefined
+		try {
+			const vscode = await import("vscode")
+			vscodeUiLocale = vscode.env.language
+		} catch {
+			// Non-VS Code host (tests / CLI): omit locale
+		}
 
 		return {
 			version,
@@ -997,9 +1028,12 @@ export class Controller {
 			backgroundEditEnabled: this.stateManager.getGlobalSettingsKey("backgroundEditEnabled"),
 			optOutOfRemoteConfig: this.stateManager.getGlobalSettingsKey("optOutOfRemoteConfig"),
 			doubleCheckCompletionEnabled,
+			resumeWithRecommendedModelEnabled,
 			banners,
 			welcomeBanners,
 			openAiCodexIsAuthenticated,
+			vscodeUiLocale,
+			gptrouterAccountProfile,
 		}
 	}
 

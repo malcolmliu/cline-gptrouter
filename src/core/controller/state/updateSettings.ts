@@ -211,6 +211,10 @@ export async function updateSettings(controller: Controller, request: UpdateSett
 			}
 		}
 
+		if (request.resumeWithRecommendedModelEnabled !== undefined) {
+			controller.stateManager.setGlobalState("resumeWithRecommendedModelEnabled", request.resumeWithRecommendedModelEnabled)
+		}
+
 		// Update custom prompt choice
 		if (request.customPrompt !== undefined) {
 			const value = request.customPrompt === "compact" ? "compact" : undefined

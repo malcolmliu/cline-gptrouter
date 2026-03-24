@@ -12,6 +12,7 @@ import {
 	ExtensionStateContextType,
 	useExtensionState,
 } from "@/context/ExtensionStateContext"
+import { I18nProvider } from "@/i18n/I18nContext"
 import { StorybookThemes } from "../../.storybook/themes"
 
 // Component that handles theme switching
@@ -45,9 +46,11 @@ function StorybookDecoratorProvider(className = "relative"): Decorator {
 		return (
 			<div className={className}>
 				<ExtensionStateContextProvider>
-					<ClineAuthProvider>
-						<ThemeHandler theme={parameters?.globals?.theme}>{React.createElement(story)}</ThemeHandler>
-					</ClineAuthProvider>
+					<I18nProvider>
+						<ClineAuthProvider>
+							<ThemeHandler theme={parameters?.globals?.theme}>{React.createElement(story)}</ThemeHandler>
+						</ClineAuthProvider>
+					</I18nProvider>
 				</ExtensionStateContextProvider>
 			</div>
 		)
@@ -75,11 +78,13 @@ export const createStorybookDecorator =
 	(overrideStates?: Partial<ExtensionStateContextType>, classNames?: string, authOverrides?: Partial<ClineAuthContextType>) =>
 	(Story: any) => (
 		<ExtensionStateProviderWithOverrides overrides={overrideStates}>
-			<ClineAuthProviderWithOverrides overrides={authOverrides}>
-				<div className={cn("max-w-lg mx-auto", classNames)}>
-					<Story />
-				</div>
-			</ClineAuthProviderWithOverrides>
+			<I18nProvider>
+				<ClineAuthProviderWithOverrides overrides={authOverrides}>
+					<div className={cn("max-w-lg mx-auto", classNames)}>
+						<Story />
+					</div>
+				</ClineAuthProviderWithOverrides>
+			</I18nProvider>
 		</ExtensionStateProviderWithOverrides>
 	)
 

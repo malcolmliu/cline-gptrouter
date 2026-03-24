@@ -80,6 +80,7 @@ export class StateManager {
 	private modelInfoCache: {
 		clineModels: { data: Record<string, ModelInfo>; timestamp: number } | null
 		openRouterModels: { data: Record<string, ModelInfo>; timestamp: number } | null
+		openAiModels: { data: Record<string, ModelInfo>; timestamp: number } | null
 		groqModels: { data: Record<string, ModelInfo>; timestamp: number } | null
 		basetenModels: { data: Record<string, ModelInfo>; timestamp: number } | null
 		huggingFaceModels: { data: Record<string, ModelInfo>; timestamp: number } | null
@@ -92,6 +93,7 @@ export class StateManager {
 	} = {
 		clineModels: null,
 		openRouterModels: null,
+		openAiModels: null,
 		groqModels: null,
 		basetenModels: null,
 		huggingFaceModels: null,
@@ -444,6 +446,7 @@ export class StateManager {
 		provider:
 			| "cline"
 			| "openRouter"
+			| "openAi"
 			| "groq"
 			| "baseten"
 			| "huggingFace"
@@ -463,6 +466,7 @@ export class StateManager {
 		provider:
 			| "cline"
 			| "openRouter"
+			| "openAi"
 			| "groq"
 			| "baseten"
 			| "huggingFace"
@@ -495,6 +499,7 @@ export class StateManager {
 	getModelInfo(
 		provider:
 			| "openRouter"
+			| "openAi"
 			| "groq"
 			| "baseten"
 			| "huggingFace"

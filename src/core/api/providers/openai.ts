@@ -1,8 +1,13 @@
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity"
 import { azureOpenAiDefaultApiVersion, ModelInfo, OpenAiCompatibleModelInfo, openAiModelInfoSaneDefaults } from "@shared/api"
 import { normalizeOpenaiReasoningEffort } from "@shared/storage/types"
+import { calculateApiCostOpenAI } from "@utils/cost"
 import OpenAI, { AzureOpenAI } from "openai"
-import type { ChatCompletionReasoningEffort, ChatCompletionTool } from "openai/resources/chat/completions"
+import type {
+	ChatCompletionFunctionTool,
+	ChatCompletionReasoningEffort,
+	ChatCompletionTool,
+} from "openai/resources/chat/completions"
 import { buildExternalBasicHeaders } from "@/services/EnvUtils"
 import { ClineStorageMessage } from "@/shared/messages/content"
 import { createOpenAIClient, fetch } from "@/shared/net"
@@ -10,9 +15,31 @@ import { Logger } from "@/shared/services/Logger"
 import { ApiHandler, CommonApiHandlerOptions } from "../index"
 import { withRetry } from "../retry"
 import { convertToOpenAiMessages } from "../transform/openai-format"
+import { convertToOpenAIResponsesInput } from "../transform/openai-response-format"
 import { convertToR1Format } from "../transform/r1-format"
 import { ApiStream } from "../transform/stream"
 import { getOpenAIToolParams, ToolCallProcessor } from "../transform/tool-call-processor"
+import { handleResponsesApiStreamResponse } from "../utils/responses_api_support"
+
+/**
+ * GPT-5.x Codex：在 GPTRouter 网关上需走 Responses API（`instructions` + 结构化 `input`）。
+ */
+function isOpenAiCodexResponsesModel(modelId: string): boolean {
+	return modelId.toLowerCase().includes("codex")
+}
+
+function mapChatToolsToResponsesTools(tools?: ChatCompletionTool[]): OpenAI.Responses.Tool[] | undefined {
+	const mapped = (tools ?? [])
+		.filter((tool): tool is ChatCompletionFunctionTool => tool?.type === "function")
+		.map((tool) => ({
+			type: "function" as const,
+			name: tool.function.name,
+			description: tool.function.description,
+			parameters: tool.function.parameters ?? null,
+			strict: tool.function.strict ?? true,
+		}))
+	return mapped.length ? mapped : undefined
+}
 
 interface OpenAiHandlerOptions extends CommonApiHandlerOptions {
 	openAiApiKey?: string
@@ -23,6 +50,8 @@ interface OpenAiHandlerOptions extends CommonApiHandlerOptions {
 	openAiModelId?: string
 	openAiModelInfo?: OpenAiCompatibleModelInfo
 	reasoningEffort?: string
+	/** 仅 GPTRouter provider：Codex 模型走 Responses API（与网关文档一致）；普通 OpenAI 兼容 provider 仍用 chat.completions */
+	isGptrouterProvider?: boolean
 }
 
 export class OpenAiHandler implements ApiHandler {
@@ -96,8 +125,13 @@ export class OpenAiHandler implements ApiHandler {
 
 	@withRetry()
 	async *createMessage(systemPrompt: string, messages: ClineStorageMessage[], tools?: ChatCompletionTool[]): ApiStream {
-		const client = this.ensureClient()
 		const modelId = this.options.openAiModelId ?? ""
+		if (this.options.isGptrouterProvider && isOpenAiCodexResponsesModel(modelId)) {
+			yield* this.createMessageViaResponsesApi(systemPrompt, messages, tools)
+			return
+		}
+
+		const client = this.ensureClient()
 		const isDeepseekReasoner = modelId.includes("deepseek-reasoner")
 		const isR1FormatRequired = this.options.openAiModelInfo?.isR1FormatRequired ?? false
 		const isReasoningModelFamily =
@@ -190,6 +224,84 @@ export class OpenAiHandler implements ApiHandler {
 					cacheWriteTokens: chunk.usage.prompt_cache_miss_tokens || 0,
 				}
 			}
+		}
+	}
+
+	/**
+	 * Codex（模型 id 含 `codex`）：使用 Responses API，与网关文档中的「结构化 input + instructions」一致。
+	 */
+	private async *createMessageViaResponsesApi(
+		systemPrompt: string,
+		messages: ClineStorageMessage[],
+		tools?: ChatCompletionTool[],
+	): ApiStream {
+		const client = this.ensureClient()
+		const modelId = this.options.openAiModelId ?? ""
+		const modelInfo = this.options.openAiModelInfo ?? openAiModelInfoSaneDefaults
+
+		// store:false → 服务端不保留 rs_*；历史里若带回上一轮 reasoning id 会 400「Item … not found」
+		const { input } = convertToOpenAIResponsesInput(messages, {
+			usePreviousResponseId: false,
+			omitAssistantReasoningItems: true,
+		})
+		const responseTools = mapChatToolsToResponsesTools(tools)
+
+		// GPTRouter Codex：始终走 Responses API；首请求即用网关最兼容的负载（store:false、不传 reasoning），
+		// 避免「先 chat/满参再降级」的体验；仅在仍失败时在同一 API 内去掉 tools 重试。
+		const minimalParams: OpenAI.Responses.ResponseCreateParamsStreaming = {
+			model: modelId,
+			instructions: systemPrompt,
+			input,
+			stream: true,
+			store: false,
+			...(responseTools ? { tools: responseTools } : {}),
+		}
+
+		const baseUrlForLog = this.options.openAiBaseUrl || ""
+		if (baseUrlForLog.includes("gptrouter.cn")) {
+			Logger.log(
+				`[GPTRouter] responses.create (Codex): baseURL=${baseUrlForLog} model=${modelId} hasTools=${!!tools?.length}`,
+			)
+			Logger.log(`[GPTRouter] responses.create (Codex) params: store=false reasoning=omitted (primary path)`)
+		}
+
+		const isRetryableResponsesError = (err: unknown) => {
+			const message = String((err as any)?.message || err)
+			return (
+				/OperationNotSupported/i.test(message) ||
+				/chatCompletion operation/i.test(message) ||
+				/does not work with the specified model/i.test(message) ||
+				/required following item/i.test(message)
+			)
+		}
+
+		try {
+			const stream = await client.responses.create(minimalParams)
+			yield* handleResponsesApiStreamResponse(stream, modelInfo, async (mi, a, b, c, d) =>
+				Promise.resolve(calculateApiCostOpenAI(mi, a, b, c, d)),
+			)
+		} catch (error: any) {
+			if (!responseTools?.length || !isRetryableResponsesError(error)) {
+				throw error
+			}
+
+			const message = String(error?.message || error)
+			if (baseUrlForLog.includes("gptrouter.cn")) {
+				Logger.warn(`[GPTRouter] Codex responses.create failed, retrying without tools.`, message)
+			}
+
+			const minimalParamsNoTools: OpenAI.Responses.ResponseCreateParamsStreaming = {
+				model: modelId,
+				instructions: systemPrompt,
+				input,
+				stream: true,
+				store: false,
+			}
+
+			const stream = await client.responses.create(minimalParamsNoTools)
+			yield* handleResponsesApiStreamResponse(stream, modelInfo, async (mi, a, b, c, d) =>
+				Promise.resolve(calculateApiCostOpenAI(mi, a, b, c, d)),
+			)
 		}
 	}
 

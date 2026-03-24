@@ -16,7 +16,7 @@ interface ApiConfigurationSectionProps {
 }
 
 const ApiConfigurationSection = ({ renderSectionHeader, initialModelTab }: ApiConfigurationSectionProps) => {
-	const { planActSeparateModelsSetting, mode, apiConfiguration } = useExtensionState()
+	const { planActSeparateModelsSetting, mode, apiConfiguration, resumeWithRecommendedModelEnabled } = useExtensionState()
 	const [currentTab, setCurrentTab] = useState<Mode>(mode)
 	const { handleFieldsChange } = useApiConfigurationHandlers()
 	return (
@@ -83,6 +83,29 @@ const ApiConfigurationSection = ({ renderSectionHeader, initialModelTab }: ApiCo
 					<p className="text-xs mt-[5px] text-(--vscode-descriptionForeground)">
 						Switching between Plan and Act mode will persist the API and model used in the previous mode. This may be
 						helpful e.g. when using a strong reasoning model to architect a plan for a cheaper coding model to act on.
+					</p>
+				</div>
+				<div className="mb-[5px]">
+					<VSCodeCheckbox
+						checked={resumeWithRecommendedModelEnabled ?? false}
+						className="mb-[5px]"
+						onChange={async (e: any) => {
+							const checked = e.target.checked === true
+							try {
+								await StateServiceClient.updateSettings(
+									UpdateSettingsRequest.create({
+										resumeWithRecommendedModelEnabled: checked,
+									}),
+								)
+							} catch (error) {
+								console.error("Failed to update recommended resume model setting:", error)
+							}
+						}}>
+						Use recommended model when resuming task from Plan
+					</VSCodeCheckbox>
+					<p className="text-xs mt-[5px] text-(--vscode-descriptionForeground)">
+						When enabled, an extra button appears in Act mode: "Resume with recommended model". Clicking it switches
+						Act model to the model recommended in the latest Plan output, then resumes execution.
 					</p>
 				</div>
 			</Section>

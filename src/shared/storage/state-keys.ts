@@ -91,6 +91,12 @@ const GLOBAL_STATE_FIELDS = {
 	dismissedBanners: { default: [] as Array<{ bannerId: string; dismissedAt: number }> },
 	// Path to worktree that should auto-open Cline sidebar when launched
 	worktreeAutoOpenPath: { default: undefined as string | undefined },
+	/** Random OAuth `state` while GPTRouter browser login is in flight */
+	gptrouterOAuthPendingState: { default: undefined as string | undefined },
+	/** Non-sensitive GPTRouter account display info after OAuth (tokens stay in secrets) */
+	gptrouterAccountProfile: {
+		default: undefined as { userId?: string; email?: string; displayName?: string } | undefined,
+	},
 } satisfies FieldDefinitions
 
 // Fields that map directly to ApiHandlerOptions in @shared/api.ts
@@ -139,6 +145,16 @@ const API_HANDLER_SETTINGS_FIELDS = {
 	ocaMode: { default: "internal" as string },
 	aihubmixBaseUrl: { default: undefined as string | undefined },
 	aihubmixAppCode: { default: undefined as string | undefined },
+	/** OAuth / login page origin, e.g. https://gptrouter.cn or http://localhost:3000 (debug) */
+	gptrouterOAuthBaseUrl: { default: undefined as string | undefined },
+	/** Optional override for token exchange URL (default: `{gptrouterOAuthBaseUrl}/oauth/token`) */
+	gptrouterOAuthTokenUrl: { default: undefined as string | undefined },
+	/** OAuth client_id registered with GPTRouter backend */
+	gptrouterOAuthClientId: { default: undefined as string | undefined },
+	/** Optional override for authorize/login URL (default: `{gptrouterOAuthBaseUrl}/oauth/authorize`) */
+	gptrouterOAuthAuthorizeUrl: { default: undefined as string | undefined },
+	/** Optional redirect_uri override for local debug callbacks */
+	gptrouterOAuthRedirectUri: { default: undefined as string | undefined },
 
 	// Plan mode configurations
 	planModeApiModelId: { default: undefined as string | undefined },
@@ -272,6 +288,7 @@ const USER_SETTINGS_FIELDS = {
 	backgroundEditEnabled: { default: false as boolean },
 	optOutOfRemoteConfig: { default: false as boolean },
 	doubleCheckCompletionEnabled: { default: false as boolean },
+	resumeWithRecommendedModelEnabled: { default: false as boolean },
 
 	// OpenTelemetry configuration
 	openTelemetryEnabled: { default: true as boolean },
@@ -345,6 +362,7 @@ const SECRETS_KEYS = [
 	"ocaRefreshToken",
 	"mcpOAuthSecrets",
 	"openai-codex-oauth-credentials", // JSON blob containing OAuth tokens for OpenAI Codex (ChatGPT subscription)
+	"gptrouterOAuthSession", // JSON: accessToken, refreshToken, expiresAt (epoch ms) for GPTRouter OAuth
 ] as const
 
 // WARNING, these are not ALL of the local state keys in practice. For example, FileContextTracker

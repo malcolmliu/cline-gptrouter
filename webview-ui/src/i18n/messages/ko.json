@@ -1,0 +1,68 @@
+{
+	"navbar": {
+		"chat": "채팅",
+		"newTask": "새 작업",
+		"mcp": "MCP",
+		"mcpServers": "MCP 서버",
+		"history": "기록",
+		"account": "계정",
+		"settings": "설정"
+	},
+	"settings": {
+		"title": "설정",
+		"tabs": {
+			"api-config": {
+				"name": "API 구성",
+				"tooltip": "API 구성",
+				"header": "API 구성"
+			},
+			"features": {
+				"name": "기능",
+				"tooltip": "기능 설정",
+				"header": "기능 설정"
+			},
+			"browser": {
+				"name": "브라우저",
+				"tooltip": "브라우저 설정",
+				"header": "브라우저 설정"
+			},
+			"terminal": {
+				"name": "터미널",
+				"tooltip": "터미널 설정",
+				"header": "터미널 설정"
+			},
+			"general": {
+				"name": "일반",
+				"tooltip": "일반 설정",
+				"header": "일반 설정"
+			},
+			"remote-config": {
+				"name": "원격 구성",
+				"tooltip": "원격으로 구성된 항목",
+				"header": "원격 구성"
+			},
+			"about": {
+				"name": "정보",
+				"tooltip": "Cline 정보",
+				"header": "정보"
+			},
+			"debug": {
+				"name": "디버그",
+				"tooltip": "디버그 도구",
+				"header": "디버그"
+			}
+		},
+		"preferredLanguage": {
+			"label": "기본 언어",
+			"description": "Cline이 대화에 사용할 언어입니다."
+		}
+	},
+	"chat": {
+		"errorRetry": {
+			"titleFailed": "자동 재시도 실패",
+			"titleInProgress": "자동 재시도 중",
+			"failedLine": "{maxAttempts}회 자동 재시도 후에도 실패했습니다. 수동으로 처리해야 합니다.",
+			"retryLine": "{attempt}/{maxAttempts}회 시도 — {delaySeconds}초 후 재시도..."
+		}
+	}
+}

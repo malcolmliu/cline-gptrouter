@@ -36,6 +36,7 @@ import {
 	getSavedApiConversationHistory,
 	getSavedClineMessages,
 } from "@core/storage/disk"
+import { buildActModeModelCatalogForPlan, getAvailableActModeModelIds } from "@core/task/act-mode-model-catalog"
 import { releaseTaskLock } from "@core/task/TaskLockUtils"
 import { isMultiRootEnabled } from "@core/workspace/multi-root-utils"
 import { WorkspaceRootManager } from "@core/workspace/WorkspaceRootManager"
@@ -61,6 +62,7 @@ import { HistoryItem } from "@shared/HistoryItem"
 import { DEFAULT_LANGUAGE_SETTINGS, getLanguageKey, LanguageDisplay } from "@shared/Languages"
 import { USER_CONTENT_TAGS } from "@shared/messages/constants"
 import { convertClineMessageToProto } from "@shared/proto-conversions/cline-message"
+import { getProviderModelIdKey } from "@shared/storage/provider-keys"
 import { ClineDefaultTool, READ_ONLY_TOOLS } from "@shared/tools"
 import { ClineAskResponse } from "@shared/WebviewMessage"
 import {
@@ -146,6 +148,8 @@ type TaskParams = {
 	taskId: string
 	taskLockAcquired: boolean
 }
+
+const RESUME_WITH_RECOMMENDED_MODEL_MARKER = "__resume_with_recommended_model__"
 
 export class Task {
 	// Core task variables
@@ -435,6 +439,8 @@ export class Task {
 			onRetryAttempt: async (attempt: number, maxRetries: number, delay: number, error: any) => {
 				const clineMessages = this.messageStateHandler.getClineMessages()
 				const lastApiReqStartedIndex = findLastIndex(clineMessages, (m) => m.say === "api_req_started")
+				const { model: retryModel, providerId: retryProviderId } = this.getCurrentProviderInfo()
+				const suppressRetryErrorUi = retryProviderId === "gptrouter" && retryModel.id.toLowerCase().includes("codex")
 				if (lastApiReqStartedIndex !== -1) {
 					try {
 						const currentApiReqInfo: ClineApiReqInfo = JSON.parse(clineMessages[lastApiReqStartedIndex].text || "{}")
@@ -442,7 +448,10 @@ export class Task {
 							attempt: attempt, // attempt is already 1-indexed from retry.ts
 							maxAttempts: maxRetries, // total attempts
 							delaySec: Math.round(delay / 1000),
-							errorSnippet: error?.message ? `${String(error.message).substring(0, 50)}...` : undefined,
+							errorSnippet:
+								suppressRetryErrorUi || !error?.message
+									? undefined
+									: `${String(error.message).substring(0, 50)}...`,
 						}
 						// Clear previous cancelReason and streamingFailedMessage if we are retrying
 						delete currentApiReqInfo.cancelReason
@@ -744,6 +753,73 @@ export class Task {
 		this.taskState.askResponseText = text
 		this.taskState.askResponseImages = images
 		this.taskState.askResponseFiles = files
+	}
+
+	private extractRecommendedModelIdFromPlanMessages(messages: ClineMessage[]): string | undefined {
+		const lastPlanMessage = [...messages]
+			.reverse()
+			.find((m) => m.type === "ask" && m.ask === "plan_mode_respond" && typeof m.text === "string")
+		if (!lastPlanMessage?.text) {
+			return undefined
+		}
+
+		let content = lastPlanMessage.text
+		try {
+			const parsed = JSON.parse(lastPlanMessage.text) as { response?: string }
+			if (parsed?.response) {
+				content = parsed.response
+			}
+		} catch {
+			// legacy/plain text
+		}
+
+		const matches = [...content.matchAll(/\[Recommended Act model:\s*`([^`]+)`\]/g)]
+		const picked = matches.at(-1)?.[1]?.trim()
+		return picked || undefined
+	}
+
+	private async maybeApplyRecommendedActModelOnResume(resumeResponseText?: string): Promise<string | undefined> {
+		if (resumeResponseText?.trim() !== RESUME_WITH_RECOMMENDED_MODEL_MARKER) {
+			return resumeResponseText
+		}
+
+		const mode = this.stateManager.getGlobalSettingsKey("mode")
+		if (mode !== "act") {
+			return undefined
+		}
+
+		const enabled = this.stateManager.getGlobalSettingsKey("resumeWithRecommendedModelEnabled")
+		if (!enabled) {
+			return undefined
+		}
+
+		const clineMessages = this.messageStateHandler.getClineMessages()
+		const recommendedId = this.extractRecommendedModelIdFromPlanMessages(clineMessages)
+		if (!recommendedId) {
+			Logger.log("[Resume] Recommended-model marker present but no model id found in plan output")
+			return undefined
+		}
+
+		const availableIds = await getAvailableActModeModelIds(this.stateManager)
+		if (!availableIds.has(recommendedId)) {
+			Logger.log(`[Resume] Recommended model ${recommendedId} not in available act-mode ids; keep current model`)
+			return undefined
+		}
+
+		const apiConfig = this.stateManager.getApiConfiguration()
+		const actProvider = apiConfig.actModeApiProvider
+		if (!actProvider) {
+			return undefined
+		}
+		const modelIdKey = getProviderModelIdKey(actProvider, "act")
+		const nextApiConfig: ApiConfiguration = {
+			...apiConfig,
+			[modelIdKey]: recommendedId,
+		}
+		this.stateManager.setApiConfiguration(nextApiConfig)
+		this.api = buildApiHandler({ ...nextApiConfig, ulid: this.ulid }, "act")
+		Logger.log(`[Resume] Switched act model to recommended id: ${recommendedId}`)
+		return undefined
 	}
 
 	async say(
@@ -1222,10 +1298,16 @@ export class Task {
 		let responseText: string | undefined
 		let responseImages: string[] | undefined
 		let responseFiles: string[] | undefined
-		if (response === "messageResponse" || text || (images && images.length > 0) || (files && files.length > 0)) {
-			await this.say("user_feedback", text, images, files)
+		const normalizedResumeResponseText = await this.maybeApplyRecommendedActModelOnResume(text)
+		if (
+			response === "messageResponse" ||
+			normalizedResumeResponseText ||
+			(images && images.length > 0) ||
+			(files && files.length > 0)
+		) {
+			await this.say("user_feedback", normalizedResumeResponseText, images, files)
 			await this.checkpointManager?.saveCheckpoint()
-			responseText = text
+			responseText = normalizedResumeResponseText
 			responseImages = images
 			responseFiles = files
 		}
@@ -2895,6 +2977,9 @@ export class Task {
 				if (!this.taskState.abandoned) {
 					const clineError = ErrorService.get().toClineError(error, this.api.getModel().id)
 					const errorMessage = clineError.serialize()
+					const { model: streamFailModel, providerId: streamFailProviderId } = this.getCurrentProviderInfo()
+					const suppressStreamAutoRetryErrorDetail =
+						streamFailProviderId === "gptrouter" && streamFailModel.id.toLowerCase().includes("codex")
 					// Auto-retry for streaming failures (always enabled)
 					if (this.taskState.autoRetryAttempts < 3) {
 						this.taskState.autoRetryAttempts++
@@ -2909,7 +2994,7 @@ export class Task {
 								attempt: this.taskState.autoRetryAttempts,
 								maxAttempts: 3,
 								delaySeconds: delay / 1000,
-								errorMessage,
+								...(suppressStreamAutoRetryErrorDetail ? {} : { errorMessage }),
 							}),
 						)
 
@@ -2970,6 +3055,19 @@ export class Task {
 
 			// Update the api_req_started message with final usage and cost details
 			await finalizeApiReqMsg()
+
+			// Token summary for pricing back-calculation/debugging.
+			// NOTE: This is per API request/turn within a task (task may include multiple turns).
+			if (providerId === "gptrouter") {
+				Logger.log(
+					`[GPTRouter][TokenSummary] ulid=${this.ulid} taskId=${this.taskId} mode=${modelInfo.mode} model=${model.id} ` +
+						`promptTokens=${taskMetrics.inputTokens} completionTokens=${taskMetrics.outputTokens} ` +
+						`cacheWriteTokens=${taskMetrics.cacheWriteTokens} cacheReadTokens=${taskMetrics.cacheReadTokens} ` +
+						`inputPricePer1M=${model.info?.inputPrice ?? "n/a"} outputPricePer1M=${model.info?.outputPrice ?? "n/a"} ` +
+						`cacheReadPricePer1M=${model.info?.cacheReadsPrice ?? "n/a"} cacheWritePricePer1M=${model.info?.cacheWritesPrice ?? "n/a"} ` +
+						`totalCost=${taskMetrics.totalCost ?? "n/a"}`,
+				)
+			}
 			await this.messageStateHandler.saveClineMessagesAndUpdateHistory()
 			await this.postStateToWebview()
 
@@ -3637,6 +3735,7 @@ export class Task {
 		const mode = this.stateManager.getGlobalSettingsKey("mode")
 		if (mode === "plan") {
 			details += `\nPLAN MODE\n${formatResponse.planModeInstructions()}`
+			details += `\n\n# Act Mode Model Catalog (for cost-aware recommendations)\n${await buildActModeModelCatalogForPlan(this.stateManager)}`
 		} else {
 			details += "\nACT MODE"
 		}

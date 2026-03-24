@@ -54,6 +54,12 @@ webview-ui/node_modules/**
 docs/**
 old_docs/**
 
+# Bundled arxiv-mcp-server: omit dev-only weight (keep sources + lockfiles)
+bundled/arxiv-mcp-server/.git/**
+bundled/arxiv-mcp-server/.venv/**
+bundled/arxiv-mcp-server/tests/**
+bundled/arxiv-mcp-server/**/__pycache__/**
+
 # Fix issue where codicons don't get packaged (https://github.com/microsoft/vscode-extension-samples/issues/692)
 !node_modules/@vscode/codicons/dist/codicon.css
 !node_modules/@vscode/codicons/dist/codicon.ttf

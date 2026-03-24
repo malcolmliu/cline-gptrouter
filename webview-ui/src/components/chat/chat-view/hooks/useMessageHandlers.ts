@@ -25,6 +25,7 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 		lastMessage,
 	} = chatState
 	const cancelInFlightRef = useRef(false)
+	const RESUME_WITH_RECOMMENDED_MODEL_MARKER = "__resume_with_recommended_model__"
 
 	// Handle sending a message
 	const handleSendMessage = useCallback(
@@ -233,6 +234,16 @@ export function useMessageHandlers(messages: ClineMessage[], chatState: ChatStat
 							}),
 						)
 					}
+					clearInputState()
+					break
+
+				case "proceed_recommended":
+					await TaskServiceClient.askResponse(
+						AskResponseRequest.create({
+							responseType: "yesButtonClicked",
+							text: RESUME_WITH_RECOMMENDED_MODEL_MARKER,
+						}),
+					)
 					clearInputState()
 					break
 
